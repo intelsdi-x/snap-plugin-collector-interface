@@ -1,0 +1,19 @@
+{
+	"ImportPath": "github.com/intelsdi-x/snap-plugin-collector-interface",
+	"GoVersion": "go1.5",
+	"Deps": [
+		{
+			"ImportPath": "github.com/intelsdi-x/snap-plugin-utilities",
+			"Rev": "c333dab33506e272a3a8ba1d961b60180f6ab35f"
+		},
+		{
+			"ImportPath": "github.com/intelsdi-x/snap",
+			"Comment": "v0.10.0-beta",
+			"Rev": "413a1b8365194b501b6f0672bf46bc8be402b19c"
+		},
+		{
+			"ImportPath": "github.com/vektra/errors",
+			"Rev": "c64d83aba85aa4392895aadeefabbd24e89f3580"
+		}
+	]
+}
