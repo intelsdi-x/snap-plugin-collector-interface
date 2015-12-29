@@ -29,8 +29,7 @@ import (
 	"github.com/intelsdi-x/snap-plugin-collector-interface/iface"
 )
 
-
-func main(){
+func main() {
 	ifacePlugin := iface.New()
 	if ifacePlugin == nil {
 		panic("Failed to initialize plugin!\n")

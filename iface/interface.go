@@ -22,39 +22,89 @@ limitations under the License.
 package iface
 
 import (
-
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
-	"io/ioutil"
-	"path/filepath"
 
-	"github.com/vektra/errors"
-
-	str "github.com/intelsdi-x/snap-plugin-utilities/strings"
 	"github.com/intelsdi-x/snap-plugin-utilities/ns"
+	str "github.com/intelsdi-x/snap-plugin-utilities/strings"
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-
 )
 
 const (
-	ifaceinfo string = "/proc/net/dev"
-	VENDOR          = "intel"
-	OS              = "linux"
-	PLUGIN          = "iface"
-	VERSION         = 1
+	// VENDOR namespace part
+	VENDOR = "intel"
+	// OS namespace part
+	OS = "linux"
+	// PLUGIN name namespace part
+	PLUGIN = "iface"
+	// VERSION of interface info plugin
+	VERSION = 1
 )
 
-type ifacePlugin struct {
-	stats map[string]interface{}
-	host  string
+var ifaceInfo = "/proc/net/dev"
+
+// GetMetricTypes returns list of available metric types
+// It returns error in case retrieval was not successful
+func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
+	metricTypes := []plugin.PluginMetricType{}
+	if err := getStats(iface.stats); err != nil {
+		return nil, err
+	}
+
+	namespaces := []string{}
+
+	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, OS, PLUGIN), &namespaces)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, namespace := range namespaces {
+		metricType := plugin.PluginMetricType{Namespace_: strings.Split(namespace, string(os.PathSeparator))}
+		metricTypes = append(metricTypes, metricType)
+	}
+	return metricTypes, nil
 }
 
+// CollectMetrics returns list of requested metric values
+// It returns error in case retrieval was not successful
+func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
+	metrics := []plugin.PluginMetricType{}
+	getStats(iface.stats)
+	for _, metricType := range metricTypes {
+		ns := metricType.Namespace()
+		if len(ns) < 5 {
+			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
+		}
+
+		val := getMapValueByNamespace(iface.stats, ns[3:])
+
+		metric := plugin.PluginMetricType{
+			Namespace_: ns,
+			Data_:      val,
+			Source_:    iface.host,
+			Timestamp_: time.Now(),
+		}
+		metrics = append(metrics, metric)
+	}
+	return metrics, nil
+}
+
+// GetConfigPolicy returns config policy
+// It returns error in case retrieval was not successful
+func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
+	return cpolicy.New(), nil
+}
+
+// New creates instance of interface info plugin
 func New() *ifacePlugin {
-	fh, err := os.Open(ifaceinfo)
+	fh, err := os.Open(ifaceInfo)
 
 	if err != nil {
 		return nil
@@ -71,18 +121,23 @@ func New() *ifacePlugin {
 	return iface
 }
 
-func parseHeader(line string) ([]string, error ){
+type ifacePlugin struct {
+	stats map[string]interface{}
+	host  string
+}
+
+func parseHeader(line string) ([]string, error) {
 
 	l := strings.Split(line, "|")
 
 	if len(l) < 3 {
-		return nil, errors.New(fmt.Sprintf("Wrong header format {%s}", line))
+		return nil, fmt.Errorf("Wrong header format {%s}", line)
 	}
 
 	header := strings.Fields(l[1])
 
 	if len(header) < 8 {
-		return nil, errors.New(fmt.Sprintf("Wrong header length. Expected 8 is {%d}", len(header)))
+		return nil, fmt.Errorf("Wrong header length. Expected 8 is {%d}", len(header))
 	}
 
 	recv := make([]string, len(header))
@@ -92,13 +147,13 @@ func parseHeader(line string) ([]string, error ){
 
 	str.ForEach(
 		recv,
-		func (s string) string {
+		func(s string) string {
 			return s + "_recv"
 		})
 
 	str.ForEach(
 		sent,
-		func (s string) string {
+		func(s string) string {
 			return s + "_sent"
 		})
 
@@ -107,7 +162,7 @@ func parseHeader(line string) ([]string, error ){
 
 func getStats(stats map[string]interface{}) error {
 
-	content, err := ioutil.ReadFile(ifaceinfo)
+	content, err := ioutil.ReadFile(ifaceInfo)
 
 	if err != nil {
 		return err
@@ -130,14 +185,14 @@ func getStats(stats map[string]interface{}) error {
 		ifdata := strings.Split(line, ":")
 
 		if len(ifdata) != 2 {
-			return errors.New(fmt.Sprintf("Wrong interface line format {%v}", len(ifdata)))
+			return fmt.Errorf("Wrong interface line format {%v}", len(ifdata))
 		}
 
 		iname := strings.TrimSpace(ifdata[0])
 		ivals := strings.Fields(ifdata[1])
 
-		if len(ivals) != 16 {
-			return errors.New(fmt.Sprintf("Wrong data length. Expected 16 is {%d}", len(ivals)))
+		if len(ivals) != len(header) {
+			return fmt.Errorf("Wrong data length. Expected {%d} is {%d}", len(header), len(ivals))
 		}
 
 		istats := map[string]interface{}{}
@@ -173,53 +228,4 @@ func getMapValueByNamespace(map_ map[string]interface{}, ns []string) interface{
 	}
 
 	return nil
-}
-
-
-func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	metricTypes := []plugin.PluginMetricType{}
-	if err := getStats(iface.stats); err != nil {
-		fmt.Printf("%v\n", err)
-		return nil, err
-	}
-
-	namespaces := []string{}
-
-	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, OS, PLUGIN), &namespaces)
-
-	if err != nil {
-		return nil, err
-	}
-
-	for _, namespace := range namespaces {
-		metricType := plugin.PluginMetricType{Namespace_: strings.Split(namespace, string(os.PathSeparator))}
-		metricTypes = append(metricTypes, metricType)
-	}
-	return metricTypes, nil
-}
-
-func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := []plugin.PluginMetricType{}
-	getStats(iface.stats)
-	for _, metricType := range metricTypes {
-		ns := metricType.Namespace()
-		if len(ns) < 5 {
-			return nil, errors.New(fmt.Sprintf("Namespace length is too short (len = %d)", len(ns)))
-		}
-
-		val := getMapValueByNamespace(iface.stats, ns[3:])
-
-		metric := plugin.PluginMetricType{
-			Namespace_: ns,
-			Data_:      val,
-			Source_:    iface.host,
-			Timestamp_: time.Now(),
-		}
-		metrics = append(metrics, metric)
-	}
-	return metrics, nil
-}
-
-func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
 }
