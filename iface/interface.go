@@ -39,8 +39,8 @@ import (
 const (
 	// VENDOR namespace part
 	VENDOR = "intel"
-	// OS namespace part
-	OS = "linux"
+	// FS namespace part
+	FS = "procfs"
 	// PLUGIN name namespace part
 	PLUGIN = "iface"
 	// VERSION of interface info plugin
@@ -59,7 +59,7 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.Pl
 
 	namespaces := []string{}
 
-	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, OS, PLUGIN), &namespaces)
+	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, FS, PLUGIN), &namespaces)
 
 	if err != nil {
 		return nil, err
