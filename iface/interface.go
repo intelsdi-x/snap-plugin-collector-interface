@@ -4,7 +4,7 @@
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
 
-Copyright 2015 Intel Corporation
+Copyright 2015-2016 Intel Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -26,14 +26,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/intelsdi-x/snap-plugin-utilities/ns"
 	str "github.com/intelsdi-x/snap-plugin-utilities/strings"
-
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
+	"github.com/intelsdi-x/snap/core/serror"
 )
 
 const (
@@ -44,7 +46,7 @@ const (
 	// PLUGIN name namespace part
 	PLUGIN = "iface"
 	// VERSION of interface info plugin
-	VERSION = 1
+	VERSION = 2
 )
 
 var ifaceInfo = "/proc/net/dev"
@@ -53,6 +55,7 @@ var ifaceInfo = "/proc/net/dev"
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
 	metricTypes := []plugin.PluginMetricType{}
+
 	if err := getStats(iface.stats); err != nil {
 		return nil, err
 	}
@@ -76,7 +79,11 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.Pl
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
 	metrics := []plugin.PluginMetricType{}
-	getStats(iface.stats)
+
+	if err := getStats(iface.stats); err != nil {
+		return nil, err
+	}
+
 	for _, metricType := range metricTypes {
 		ns := metricType.Namespace()
 		if len(ns) < 5 {
@@ -198,7 +205,18 @@ func getStats(stats map[string]interface{}) error {
 		istats := map[string]interface{}{}
 		for i := 0; i < 16; i++ {
 			stat := header[i]
-			val := ivals[i]
+			val, err := strconv.ParseInt(ivals[i], 10, 64)
+			if err != nil {
+				f := map[string]interface{}{
+					"iname":  iname,
+					"stat":   stat,
+					"strVal": ivals[i],
+					"val":    val,
+				}
+				se := serror.New(err, f)
+				log.WithFields(se.Fields()).Warn("Cannot parse metric value to number, metric value saved as -1, ", se.String())
+				val = -1
+			}
 			istats[stat] = val
 		}
 

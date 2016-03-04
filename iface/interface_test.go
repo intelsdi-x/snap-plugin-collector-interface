@@ -4,7 +4,7 @@
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
 
-Copyright 2015 Intel Corporation
+Copyright 2015-2016 Intel Corporation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -72,29 +72,29 @@ func (iis *ifaceInfoSuite) TestGetStats() {
 				p3p1 := stats["p3p1"].(map[string]interface{})
 				So(len(p3p1), ShouldEqual, 16)
 
-				val, ok := p3p1["bytes_recv"].(string)
+				val, ok := p3p1["bytes_recv"].(int64)
 				So(ok, ShouldBeTrue)
-				So(val, ShouldEqual, "1412848320")
+				So(val, ShouldEqual, 1412848320)
 
-				val, ok = p3p1["packets_recv"].(string)
+				val, ok = p3p1["packets_recv"].(int64)
 				So(ok, ShouldBeTrue)
-				So(val, ShouldEqual, "12238775")
+				So(val, ShouldEqual, 12238775)
 
-				val, ok = p3p1["packets_sent"].(string)
+				val, ok = p3p1["packets_sent"].(int64)
 				So(ok, ShouldBeTrue)
-				So(val, ShouldEqual, "17015516")
+				So(val, ShouldEqual, 17015516)
 
 				So(stats["lo"], ShouldHaveSameTypeAs, map[string]interface{}{})
 				lo := stats["lo"].(map[string]interface{})
 				So(len(lo), ShouldEqual, 16)
 
-				val, ok = lo["fifo_sent"].(string)
+				val, ok = lo["fifo_sent"].(int64)
 				So(ok, ShouldBeTrue)
-				So(val, ShouldEqual, "0")
+				So(val, ShouldEqual, 0)
 
-				val, ok = lo["errs_recv"].(string)
+				val, ok = lo["errs_recv"].(int64)
 				So(ok, ShouldBeTrue)
-				So(val, ShouldEqual, "0")
+				So(val, ShouldEqual, 0)
 			})
 		})
 	})
