@@ -31,10 +31,12 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+
 	"github.com/intelsdi-x/snap-plugin-utilities/ns"
-	str "github.com/intelsdi-x/snap-plugin-utilities/strings"
+	"github.com/intelsdi-x/snap-plugin-utilities/str"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
+	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
 )
 
@@ -53,8 +55,8 @@ var ifaceInfo = "/proc/net/dev"
 
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.PluginMetricType, error) {
-	metricTypes := []plugin.PluginMetricType{}
+func (iface *ifacePlugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.MetricType, error) {
+	metricTypes := []plugin.MetricType{}
 
 	if err := getStats(iface.stats); err != nil {
 		return nil, err
@@ -69,7 +71,7 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.Pl
 	}
 
 	for _, namespace := range namespaces {
-		metricType := plugin.PluginMetricType{Namespace_: strings.Split(namespace, string(os.PathSeparator))}
+		metricType := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
 		metricTypes = append(metricTypes, metricType)
 	}
 	return metricTypes, nil
@@ -77,25 +79,31 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.PluginConfigType) ([]plugin.Pl
 
 // CollectMetrics returns list of requested metric values
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.PluginMetricType) ([]plugin.PluginMetricType, error) {
-	metrics := []plugin.PluginMetricType{}
+func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
+	metrics := []plugin.MetricType{}
 
 	if err := getStats(iface.stats); err != nil {
 		return nil, err
 	}
 
 	for _, metricType := range metricTypes {
+		tags := metricType.Tags()
+		if tags == nil {
+			tags = map[string]string{}
+		}
+		tags["hostname"] = iface.host
+
 		ns := metricType.Namespace()
 		if len(ns) < 5 {
 			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
 		}
 
-		val := getMapValueByNamespace(iface.stats, ns[3:])
+		val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
 
-		metric := plugin.PluginMetricType{
+		metric := plugin.MetricType{
 			Namespace_: ns,
 			Data_:      val,
-			Source_:    iface.host,
+			Tags_:      tags,
 			Timestamp_: time.Now(),
 		}
 		metrics = append(metrics, metric)
