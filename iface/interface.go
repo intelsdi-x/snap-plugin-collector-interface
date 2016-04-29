@@ -48,7 +48,7 @@ const (
 	// PLUGIN name namespace part
 	PLUGIN = "iface"
 	// VERSION of interface info plugin
-	VERSION = 2
+	VERSION = 3
 )
 
 var ifaceInfo = "/proc/net/dev"
