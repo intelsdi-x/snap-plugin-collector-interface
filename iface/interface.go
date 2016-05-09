@@ -87,12 +87,6 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 	}
 
 	for _, metricType := range metricTypes {
-		tags := metricType.Tags()
-		if tags == nil {
-			tags = map[string]string{}
-		}
-		tags["hostname"] = iface.host
-
 		ns := metricType.Namespace()
 		if len(ns) < 5 {
 			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
@@ -103,7 +97,6 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 		metric := plugin.MetricType{
 			Namespace_: ns,
 			Data_:      val,
-			Tags_:      tags,
 			Timestamp_: time.Now(),
 		}
 		metrics = append(metrics, metric)
@@ -126,19 +119,13 @@ func New() *ifacePlugin {
 	}
 	defer fh.Close()
 
-	host, err := os.Hostname()
-	if err != nil {
-		host = "localhost"
-	}
-
-	iface := &ifacePlugin{stats: map[string]interface{}{}, host: host}
+	iface := &ifacePlugin{stats: map[string]interface{}{}}
 
 	return iface
 }
 
 type ifacePlugin struct {
 	stats map[string]interface{}
-	host  string
 }
 
 func parseHeader(line string) ([]string, error) {
