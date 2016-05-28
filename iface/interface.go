@@ -24,7 +24,6 @@ package iface
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -112,13 +111,6 @@ func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
 
 // New creates instance of interface info plugin
 func New() *ifacePlugin {
-	fh, err := os.Open(ifaceInfo)
-
-	if err != nil {
-		return nil
-	}
-	defer fh.Close()
-
 	iface := &ifacePlugin{stats: map[string]interface{}{}}
 
 	return iface
