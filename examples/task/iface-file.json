@@ -9,13 +9,12 @@
             "metrics": {
                 "/intel/procfs/iface/<interface_name>/bytes_recv": {},
                 "/intel/procfs/iface/<interface_name>/bytes_sent": {},
-                "/intel/procfs/iface/<interface_name>/err_recv": {},
+                "/intel/procfs/iface/<interface_name>/errs_recv": {},
                 "/intel/procfs/iface/<interface_name>/fifo_recv": {}
             },
             "config": {
-                "/intel/mock": {
-                    "password": "secret",
-                    "user": "root"
+                "/intel/procfs/iface": {
+                    "proc_path": "/proc"
                 }
             },
             "process": [
@@ -26,7 +25,7 @@
                         {
                             "plugin_name": "file",
                             "config": {
-                                "file": "/tmp/published_interface"
+                                "file": "/tmp/published_interface.log"
                             }
                         }
                     ],

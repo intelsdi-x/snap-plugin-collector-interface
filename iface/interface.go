@@ -34,6 +34,7 @@ import (
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
+	"github.com/intelsdi-x/snap/core/ctypes"
 	"github.com/intelsdi-x/snap/core/serror"
 
 	"github.com/intelsdi-x/snap-plugin-utilities/ns"
@@ -56,7 +57,10 @@ const (
 // prefix in metric namespace
 var prefix = []string{nsVendor, nsClass, nsType}
 
-var ifaceInfo = "/proc/net/dev"
+// added init PID 1 so that we take the global namespace
+// to be sure to gather all possible interfaces wherever
+// the plugin gets executed
+var ifaceInfo = "/proc/1/net/dev"
 
 // Meta returns plugin meta data
 func Meta() *plugin.PluginMeta {
@@ -72,10 +76,10 @@ func Meta() *plugin.PluginMeta {
 
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.MetricType, error) {
+func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
 	metricTypes := []plugin.MetricType{}
 
-	if err := getStats(iface.stats); err != nil {
+	if err := getStats(cfg.Table(), iface.stats); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +103,7 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.MetricTy
 func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
 	metrics := []plugin.MetricType{}
 
-	if err := getStats(iface.stats); err != nil {
+	if err := getStats(metricTypes[0].Config().Table(), iface.stats); err != nil {
 		return nil, err
 	}
 
@@ -177,9 +181,16 @@ func parseHeader(line string) ([]string, error) {
 	return append(recv, sent...), nil
 }
 
-func getStats(stats map[string]interface{}) error {
+func getStats(cfg map[string]ctypes.ConfigValue, stats map[string]interface{}) error {
+	path := ifaceInfo
+	if procPath, ok := cfg["proc_path"]; ok {
+		// Do not use /net/dev only as $PROC/dev is a symlink to self !!!
+		// which means that you will get the net interfaces from the container
+		// and not from the host
+		path = procPath.(ctypes.ConfigValueStr).Value + "/1/net/dev"
+	}
 
-	content, err := ioutil.ReadFile(ifaceInfo)
+	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
 		return err

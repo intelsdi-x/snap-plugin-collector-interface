@@ -49,10 +49,20 @@ This builds the plugin in `/build/rootfs/`
 `export SNAP_PATH=$GOPATH/src/github.com/intelsdi-x/snap/build`
 * Load the plugin and create a task, see example in [Examples](https://github.com/intelsdi-x/snap-plugin-collector-interface/blob/master/README.md#examples).
 
+Configuration parameters:
+- `proc_path` path to '1/dev/net' file (helpful for running plugin in Docker container)
+In fact this file should NOT be <proc_path>/dev/net because this is a symlink and therefore
+will resolve in the exact same way both within or outside of a container. Therefore PID 1
+has to be used
+
 ## Documentation
 
 ### Collected Metrics
 List of collected metrics is described in [METRICS.md](https://github.com/intelsdi-x/snap-plugin-collector-interface/blob/master/METRICS.md).
+
+Plugin reads metrics from `<proc_path>/1/dev/net` file. (see comment above)
+Path to above file can be provided in configuration in task manifest as `proc_path`. If configuration is not provided, plugin will try
+to read from default location which is `/proc/1/dev/net`.
 
 ### Examples
 Example running interface, passthru processor, and writing data to a file.
@@ -90,13 +100,12 @@ Put your desired interface name instead of "\<interface_name\>"
             "metrics": {
                 "/intel/procfs/iface/<interface_name>/bytes_recv": {},
                 "/intel/procfs/iface/<interface_name>/bytes_sent": {}, 
-                "/intel/procfs/iface/<interface_name>/err_recv": {},
+                "/intel/procfs/iface/<interface_name>/errs_recv": {},
                 "/intel/procfs/iface/<interface_name>/fifo_recv": {} 
             },
             "config": {
-                "/intel/mock": {
-                    "password": "secret",
-                    "user": "root"
+                "/intel/procfs/iface": {
+                    "proc_path": "/proc"
                 }
             },
             "process": [
