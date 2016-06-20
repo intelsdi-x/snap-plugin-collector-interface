@@ -31,26 +31,44 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/intelsdi-x/snap-plugin-utilities/ns"
-	"github.com/intelsdi-x/snap-plugin-utilities/str"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
+
+	"github.com/intelsdi-x/snap-plugin-utilities/ns"
+	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
 const (
-	// VENDOR namespace part
-	VENDOR = "intel"
-	// FS namespace part
-	FS = "procfs"
-	// PLUGIN name namespace part
-	PLUGIN = "iface"
-	// VERSION of interface info plugin
-	VERSION = 3
+	// Name of plugin
+	PluginName = "iface"
+	// Version of plugin
+	PluginVersion = 3
+	// Type of plugin
+	pluginType = plugin.CollectorPluginType
+
+	nsVendor = "intel"
+	nsClass  = "procfs"
+	nsType   = "iface"
 )
 
+// prefix in metric namespace
+var prefix = []string{nsVendor, nsClass, nsType}
+
 var ifaceInfo = "/proc/net/dev"
+
+// Meta returns plugin meta data
+func Meta() *plugin.PluginMeta {
+	return plugin.NewPluginMeta(
+		PluginName,
+		PluginVersion,
+		pluginType,
+		[]string{},
+		[]string{plugin.SnapGOBContentType},
+		plugin.ConcurrencyCount(1),
+	)
+}
 
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
@@ -63,7 +81,7 @@ func (iface *ifacePlugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.MetricTy
 
 	namespaces := []string{}
 
-	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, FS, PLUGIN), &namespaces)
+	err := ns.FromMap(iface.stats, filepath.Join(nsVendor, nsClass, nsType), &namespaces)
 
 	if err != nil {
 		return nil, err
@@ -106,7 +124,12 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 // GetConfigPolicy returns config policy
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
+	cp := cpolicy.New()
+	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
+	node := cpolicy.NewPolicyNode()
+	node.Add(rule)
+	cp.Add([]string{nsVendor, nsClass, PluginName}, node)
+	return cp, nil
 }
 
 // New creates instance of interface info plugin
