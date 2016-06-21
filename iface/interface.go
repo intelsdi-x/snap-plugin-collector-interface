@@ -30,6 +30,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+//	"github.com/davecgh/go-spew/spew"
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
@@ -77,7 +78,7 @@ func Meta() *plugin.PluginMeta {
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
-	metricTypes := []plugin.MetricType{}
+	mts := []plugin.MetricType{}
 
 	if err := getStats(cfg.Table(), iface.stats); err != nil {
 		return nil, err
@@ -91,11 +92,25 @@ func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metric
 		return nil, err
 	}
 
+	// List of terminal metric names
+	mList := make(map[string]bool)
 	for _, namespace := range namespaces {
-		metricType := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
-		metricTypes = append(metricTypes, metricType)
+		metric := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
+		ns := metric.Namespace()
+		// Interface metric (aka last element in namespace)
+		mItem := ns[len(ns)-1]
+		// Keep it if not already seen before
+		if !mList[mItem.Value] {
+			mList[mItem.Value] = true
+			mts = append(mts, plugin.MetricType{
+				Namespace_: core.NewNamespace(prefix...).
+					AddDynamicElement("interface", "name of interface").
+					AddStaticElement(mItem.Value),
+				Description_: "dynamic interface metric: " + mItem.Value,
+			})
+		}
 	}
-	return metricTypes, nil
+	return mts, nil
 }
 
 // CollectMetrics returns list of requested metric values
@@ -106,23 +121,47 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 	if err := getStats(metricTypes[0].Config().Table(), iface.stats); err != nil {
 		return nil, err
 	}
-
+//	log.Error(fmt.Sprintf("OLivier Metrics ** %s **", spew.Sdump(iface.stats)))
+	curTime := time.Now()
 	for _, metricType := range metricTypes {
 		ns := metricType.Namespace()
 		if len(ns) < 5 {
 			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
 		}
-
-		val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
-
-		metric := plugin.MetricType{
-			Namespace_: ns,
-			Data_:      val,
-			Timestamp_: time.Now(),
+//		log.Error(fmt.Sprintf("OLivier NS=%s => Metric ** %s **", ns, spew.Sdump(metricType)))
+		if ns[len(ns)-2].Value == "*" {
+			for itf, istats := range iface.stats {
+				val := getMapValueByNamespace(istats.(map[string]interface{}), ns.Strings()[4:])
+//				log.Error(fmt.Sprintf("OLivier itf=%s v=%s => ** %s **", itf, spew.Sdump(val), spew.Sdump(istats)))
+				if val != nil {
+					ns1 := core.NewNamespace(createNamespace(itf, ns[len(ns)-1].Value)...)
+					ns1[len(ns1)-2].Name = ns[len(ns)-2].Name
+//					log.Error(fmt.Sprintf("OLivier itf=%s ns1=%s **", itf, spew.Sdump(ns1)))
+					metric := plugin.MetricType{
+						Namespace_: ns1,
+						Data_:      val,
+						Timestamp_: curTime,
+					}
+					metrics = append(metrics, metric)
+				}
+			}
+		} else {
+			val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
+			metric := plugin.MetricType{
+				Namespace_: ns,
+				Data_:      val,
+				Timestamp_: curTime,
+			}
+			metrics = append(metrics, metric)
 		}
-		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+}
+
+// createNamespace returns namespace slice of strings composed from: vendor, class, type and components of metric name
+func createNamespace(itf string, name string) []string {
+	var suffix = []string{itf, name}
+	return append(prefix, suffix...)
 }
 
 // GetConfigPolicy returns config policy
