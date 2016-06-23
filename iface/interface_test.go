@@ -30,6 +30,8 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/core"
+	"github.com/intelsdi-x/snap/core/cdata"
+	"github.com/intelsdi-x/snap/core/ctypes"
 )
 
 type ifaceInfoSuite struct {
@@ -51,13 +53,14 @@ func (iis *ifaceInfoSuite) TearDownSuite() {
 func (iis *ifaceInfoSuite) TestGetStats() {
 	Convey("Given interface info map", iis.T(), func() {
 		stats := map[string]interface{}{}
+		cfg := map[string]ctypes.ConfigValue{}
 
 		Convey("and mock memory info file created", func() {
 			assert.Equal(iis.T(), "mockIfaceInfo", ifaceInfo)
 		})
 
 		Convey("When reading interface statistics from file", func() {
-			err := getStats(stats)
+			err := getStats(cfg, stats)
 
 			Convey("No error should be reported", func() {
 				So(err, ShouldBeNil)
@@ -103,7 +106,7 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 		ifacePlg := New()
 
 		Convey("When one wants to get iist of available meterics", func() {
-			mts, err := ifacePlg.GetMetricTypes(plugin.ConfigType{})
+			mts, err := ifacePlg.GetMetricTypes(plugin.NewPluginConfigType())
 
 			Convey("Then error should not be reported", func() {
 				So(err, ShouldBeNil)
@@ -160,9 +163,16 @@ func (iis *ifaceInfoSuite) TestCollectMetrics() {
 		ifacePlg := New()
 
 		Convey("When one wants to get values for given metric types", func() {
+			cfg := cdata.NewNode()
 			mTypes := []plugin.MetricType{
-				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent")},
-				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv")},
+				plugin.MetricType{
+					Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent"),
+					Config_:    cfg,
+				},
+				plugin.MetricType{
+					Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv"),
+					Config_:    cfg,
+				},
 			}
 
 			metrics, err := ifacePlg.CollectMetrics(mTypes)
