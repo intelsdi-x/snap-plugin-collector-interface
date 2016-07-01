@@ -30,8 +30,6 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/cdata"
-	"github.com/intelsdi-x/snap/core/ctypes"
 )
 
 type ifaceInfoSuite struct {
@@ -52,15 +50,16 @@ func (iis *ifaceInfoSuite) TearDownSuite() {
 
 func (iis *ifaceInfoSuite) TestGetStats() {
 	Convey("Given interface info map", iis.T(), func() {
+		ifacePlg := New()
+
 		stats := map[string]interface{}{}
-		cfg := map[string]ctypes.ConfigValue{}
 
 		Convey("and mock memory info file created", func() {
 			assert.Equal(iis.T(), "mockIfaceInfo", ifaceInfo)
 		})
 
 		Convey("When reading interface statistics from file", func() {
-			err := getStats(cfg, stats)
+			err := ifacePlg.getStats(stats)
 
 			Convey("No error should be reported", func() {
 				So(err, ShouldBeNil)
@@ -106,53 +105,37 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 		ifacePlg := New()
 
 		Convey("When one wants to get iist of available meterics", func() {
-			mts, err := ifacePlg.GetMetricTypes(plugin.NewPluginConfigType())
+			mts, err := ifacePlg.GetMetricTypes(plugin.ConfigType{})
 
 			Convey("Then error should not be reported", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("Then list of metrics is returned", func() {
-				So(len(mts), ShouldEqual, 32)
+				So(len(mts), ShouldEqual, 16)
 
 				namespaces := []string{}
 				for _, m := range mts {
 					namespaces = append(namespaces, m.Namespace().String())
 				}
 
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/errs_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/errs_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/frame_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/frame_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/packets_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/packets_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/drop_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/drop_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/fifo_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/fifo_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/compressed_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/compressed_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/multicast_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/multicast_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/bytes_recv")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/bytes_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/errs_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/frame_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/packets_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/drop_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/fifo_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/compressed_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/multicast_recv")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/bytes_recv")
 
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/errs_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/errs_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/frame_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/frame_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/packets_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/packets_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/drop_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/drop_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/fifo_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/fifo_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/compressed_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/compressed_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/multicast_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/multicast_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/p3p1/bytes_sent")
-				So(namespaces, ShouldContain, "/intel/procfs/iface/lo/bytes_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/errs_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/frame_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/packets_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/drop_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/fifo_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/compressed_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/multicast_sent")
+				So(namespaces, ShouldContain, "/intel/procfs/iface/*/bytes_sent")
 			})
 		})
 	})
@@ -163,16 +146,9 @@ func (iis *ifaceInfoSuite) TestCollectMetrics() {
 		ifacePlg := New()
 
 		Convey("When one wants to get values for given metric types", func() {
-			cfg := cdata.NewNode()
 			mTypes := []plugin.MetricType{
-				plugin.MetricType{
-					Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent"),
-					Config_:    cfg,
-				},
-				plugin.MetricType{
-					Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv"),
-					Config_:    cfg,
-				},
+				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent")},
+				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv")},
 			}
 
 			metrics, err := ifacePlg.CollectMetrics(mTypes)

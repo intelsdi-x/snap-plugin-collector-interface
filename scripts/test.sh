@@ -7,7 +7,6 @@
 # 5. race detector (http://blog.golang.org/race-detector)
 # 6. test coverage (http://blog.golang.org/cover)
 
-# Capture what test we should run
 # Either command line or environment should be specified
 if [ $# -ne 1 ] && [ -z "$TEST_SUITE" ]; then
 	echo "ERROR; missing TEST_SUITE (Usage: $0 TEST_SUITE)"
