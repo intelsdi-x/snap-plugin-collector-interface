@@ -47,7 +47,7 @@ const (
 	// Name of plugin
 	PluginName = "iface"
 	// Version of plugin
-	PluginVersion = 3
+	PluginVersion = 4
 	// Type of plugin
 	pluginType = plugin.CollectorPluginType
 
