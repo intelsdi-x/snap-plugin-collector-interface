@@ -30,6 +30,7 @@ import (
 
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/core"
+	"github.com/intelsdi-x/snap/core/cdata"
 )
 
 type ifaceInfoSuite struct {
@@ -105,7 +106,7 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 		ifacePlg := New()
 
 		Convey("When one wants to get iist of available meterics", func() {
-			mts, err := ifacePlg.GetMetricTypes(plugin.ConfigType{})
+			mts, err := ifacePlg.GetMetricTypes(plugin.NewPluginConfigType())
 
 			Convey("Then error should not be reported", func() {
 				So(err, ShouldBeNil)
@@ -144,11 +145,17 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 func (iis *ifaceInfoSuite) TestCollectMetrics() {
 	Convey("Given interface info plugin initlialized", iis.T(), func() {
 		ifacePlg := New()
-
+		cfg := cdata.NewNode()
 		Convey("When one wants to get values for given metric types", func() {
 			mTypes := []plugin.MetricType{
-				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent")},
-				plugin.MetricType{Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv")},
+				plugin.MetricType{
+					Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent"),
+					Config_:    cfg,
+				},
+				plugin.MetricType{
+					Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv"),
+					Config_:    cfg,
+				},
 			}
 
 			metrics, err := ifacePlg.CollectMetrics(mTypes)
