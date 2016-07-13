@@ -22,8 +22,10 @@ limitations under the License.
 package iface
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,93 +33,186 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/intelsdi-x/snap-plugin-utilities/ns"
-	"github.com/intelsdi-x/snap-plugin-utilities/str"
 	"github.com/intelsdi-x/snap/control/plugin"
 	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
 	"github.com/intelsdi-x/snap/core"
 	"github.com/intelsdi-x/snap/core/serror"
+
+	"github.com/intelsdi-x/snap-plugin-utilities/config"
+	"github.com/intelsdi-x/snap-plugin-utilities/ns"
+	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
 const (
-	// VENDOR namespace part
-	VENDOR = "intel"
-	// FS namespace part
-	FS = "procfs"
-	// PLUGIN name namespace part
-	PLUGIN = "iface"
-	// VERSION of interface info plugin
-	VERSION = 3
+	// Name of plugin
+	PluginName = "iface"
+	// Version of plugin
+	PluginVersion = 4
+	// Type of plugin
+	pluginType = plugin.CollectorPluginType
+
+	nsVendor = "intel"
+	nsClass  = "procfs"
+	nsType   = "iface"
 )
 
-var ifaceInfo = "/proc/net/dev"
+// prefix in metric namespace
+var prefix = []string{nsVendor, nsClass, nsType}
+
+// added init PID 1 so that we take the global namespace
+// to be sure to gather all possible interfaces wherever
+// the plugin gets executed
+var ifaceInfo = "/proc/1/net/dev"
+
+// Meta returns plugin meta data
+func Meta() *plugin.PluginMeta {
+	return plugin.NewPluginMeta(
+		PluginName,
+		PluginVersion,
+		pluginType,
+		[]string{},
+		[]string{plugin.SnapGOBContentType},
+		plugin.ConcurrencyCount(1),
+	)
+}
+
+// Function to check properness of configuration parameter
+// and set plugin attribute accordingly
+func (iface *ifacePlugin) setProcPath(cfg interface{}) error {
+	procPath, err := config.GetConfigItem(cfg, "proc_path")
+	if err == nil && len(procPath.(string)) > 0 {
+		procPathStats, err := os.Stat(procPath.(string))
+		if err != nil {
+			return err
+		}
+		if !procPathStats.IsDir() {
+			return errors.New(fmt.Sprintf("%s is not a directory", procPath.(string)))
+		}
+		iface.proc_path = procPath.(string) + "/1/net/dev"
+	}
+	return nil
+}
 
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) GetMetricTypes(_ plugin.ConfigType) ([]plugin.MetricType, error) {
-	metricTypes := []plugin.MetricType{}
+func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+	err := iface.setProcPath(cfg)
+	if err != nil {
+		return nil, err
+	}
 
-	if err := getStats(iface.stats); err != nil {
+	mts := []plugin.MetricType{}
+
+	if err = iface.getStats(iface.stats); err != nil {
 		return nil, err
 	}
 
 	namespaces := []string{}
 
-	err := ns.FromMap(iface.stats, filepath.Join(VENDOR, FS, PLUGIN), &namespaces)
+	err = ns.FromMap(iface.stats, filepath.Join(nsVendor, nsClass, nsType), &namespaces)
 
 	if err != nil {
 		return nil, err
 	}
 
+	// List of terminal metric names
+	mList := make(map[string]bool)
 	for _, namespace := range namespaces {
-		metricType := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
-		metricTypes = append(metricTypes, metricType)
+		metric := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
+		ns := metric.Namespace()
+		// Interface metric (aka last element in namespace)
+		mItem := ns[len(ns)-1]
+		// Keep it if not already seen before
+		if !mList[mItem.Value] {
+			mList[mItem.Value] = true
+			mts = append(mts, plugin.MetricType{
+				Namespace_: core.NewNamespace(prefix...).
+					AddDynamicElement("interface", "name of interface").
+					AddStaticElement(mItem.Value),
+				Description_: "dynamic interface metric: " + mItem.Value,
+			})
+		}
 	}
-	return metricTypes, nil
+	return mts, nil
 }
 
 // CollectMetrics returns list of requested metric values
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
-	metrics := []plugin.MetricType{}
-
-	if err := getStats(iface.stats); err != nil {
+	err := iface.setProcPath(metricTypes[0])
+	if err != nil {
 		return nil, err
 	}
 
+	metrics := []plugin.MetricType{}
+
+	if err := iface.getStats(iface.stats); err != nil {
+		return nil, err
+	}
+	curTime := time.Now()
 	for _, metricType := range metricTypes {
 		ns := metricType.Namespace()
 		if len(ns) < 5 {
 			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
 		}
-
-		val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
-
-		metric := plugin.MetricType{
-			Namespace_: ns,
-			Data_:      val,
-			Timestamp_: time.Now(),
+		if ns[len(ns)-2].Value == "*" {
+			for itf, istats := range iface.stats {
+				val := getMapValueByNamespace(istats.(map[string]interface{}), ns.Strings()[4:])
+				if val != nil {
+					ns1 := core.NewNamespace(createNamespace(itf, ns[len(ns)-1].Value)...)
+					ns1[len(ns1)-2].Name = ns[len(ns)-2].Name
+					metric := plugin.MetricType{
+						Namespace_: ns1,
+						Data_:      val,
+						Timestamp_: curTime,
+					}
+					metrics = append(metrics, metric)
+				}
+			}
+		} else {
+			val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
+			metric := plugin.MetricType{
+				Namespace_: ns,
+				Data_:      val,
+				Timestamp_: curTime,
+			}
+			metrics = append(metrics, metric)
 		}
-		metrics = append(metrics, metric)
 	}
 	return metrics, nil
+}
+
+// createNamespace returns namespace slice of strings composed from: vendor, class, type and components of metric name
+func createNamespace(itf string, name string) []string {
+	var suffix = []string{itf, name}
+	return append(prefix, suffix...)
 }
 
 // GetConfigPolicy returns config policy
 // It returns error in case retrieval was not successful
 func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	return cpolicy.New(), nil
+	cp := cpolicy.New()
+	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
+	node := cpolicy.NewPolicyNode()
+	node.Add(rule)
+	cp.Add([]string{nsVendor, nsClass, PluginName}, node)
+	return cp, nil
 }
 
 // New creates instance of interface info plugin
 func New() *ifacePlugin {
-	iface := &ifacePlugin{stats: map[string]interface{}{}}
-
-	return iface
+	logger := log.New()
+	return &ifacePlugin{
+		logger:    logger,
+		proc_path: ifaceInfo,
+		stats:     map[string]interface{}{},
+	}
 }
 
 type ifacePlugin struct {
-	stats map[string]interface{}
+	stats     map[string]interface{}
+	logger    *log.Logger
+	proc_path string
 }
 
 func parseHeader(line string) ([]string, error) {
@@ -154,9 +249,9 @@ func parseHeader(line string) ([]string, error) {
 	return append(recv, sent...), nil
 }
 
-func getStats(stats map[string]interface{}) error {
-
-	content, err := ioutil.ReadFile(ifaceInfo)
+func (iface *ifacePlugin) getStats(stats map[string]interface{}) error {
+	path := iface.proc_path
+	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
 		return err

@@ -37,8 +37,8 @@ func main() {
 
 	plugin.Start(
 		plugin.NewPluginMeta(
-			iface.PLUGIN,
-			iface.VERSION,
+			iface.PluginName,
+			iface.PluginVersion,
 			plugin.CollectorPluginType,
 			[]string{},
 			[]string{plugin.SnapGOBContentType},
