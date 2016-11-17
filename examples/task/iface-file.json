@@ -1,38 +1,25 @@
 {
-    "version": 1,
-    "schedule": {
-        "type": "simple",
-        "interval": "1s"
-    },
-    "workflow": {
-        "collect": {
-            "metrics": {
-                "/intel/procfs/iface/<interface_name>/bytes_recv": {},
-                "/intel/procfs/iface/<interface_name>/bytes_sent": {},
-                "/intel/procfs/iface/<interface_name>/errs_recv": {},
-                "/intel/procfs/iface/<interface_name>/fifo_recv": {}
-            },
-            "config": {
-                "/intel/procfs/iface": {
-                    "proc_path": "/proc"
-                }
-            },
-            "process": [
-                {
-                    "plugin_name": "passthru",
-                    "process": null,
-                    "publish": [
-                        {
-                            "plugin_name": "file",
-                            "config": {
-                                "file": "/tmp/published_interface.log"
-                            }
-                        }
-                    ],
-                    "config": null
-                }
-            ],
-            "publish": null
+  "version": 1,
+  "schedule": {
+    "type": "simple",
+    "interval": "1s"
+  },
+  "workflow": {
+    "collect": {
+      "metrics": {
+        "/intel/procfs/iface/<interface_name>/bytes_recv": {},
+        "/intel/procfs/iface/<interface_name>/bytes_sent": {},
+        "/intel/procfs/iface/<interface_name>/errs_recv": {},
+        "/intel/procfs/iface/<interface_name>/fifo_recv": {}
+      },
+      "publish": [
+        {
+          "plugin_name": "file",
+          "config": {
+            "file": "/tmp/published_interface"
+          }
         }
+      ]
     }
+  }
 }
