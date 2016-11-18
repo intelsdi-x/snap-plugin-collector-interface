@@ -47,7 +47,7 @@ This builds the plugin in `./build/`
 
 ### Configuration and Usage
 * Set up the [Snap framework](https://github.com/intelsdi-x/snap#getting-started)
-* Load the plugin and create a task, see example in [Examples](https://github.com/intelsdi-x/snap-plugin-collector-interface#examples).
+* Load the plugin and create a task, see example in [Examples](#examples).
 
 Configuration parameters:
 - `proc_path` path to '1/dev/net' file (helpful for running plugin in Docker container)
