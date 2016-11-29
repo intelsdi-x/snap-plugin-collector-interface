@@ -87,9 +87,9 @@ See all available metrics:
 $ snaptel metric list
 ```
 
-Download an [example task file](examples/task/iface-file.json) and load it:
+Download an [example task file](examples/tasks/iface-file.json) and load it:
 ```
-$ curl -sfLO https://raw.githubusercontent.com/intelsdi-x/snap-plugin-collector-interface/master/examples/task/iface-file.json
+$ curl -sfLO https://raw.githubusercontent.com/intelsdi-x/snap-plugin-collector-interface/master/examples/tasks/iface-file.json
 $ snaptel task create -t iface-file.json
 Using task manifest to create task
 Task created
@@ -113,9 +113,8 @@ ID: 02dd7ff4-8106-47e9-8b86-70067cd0a850
 There isn't a current roadmap for this plugin, but it is in active development. As we launch this plugin, we do not have any outstanding requirements for the next release. If you have a feature request, please add it as an [issue](https://github.com/intelsdi-x/snap-plugin-collector-interface/issues/new) and/or submit a [pull request](https://github.com/intelsdi-x/snap-plugin-collector-interface/pulls).
 
 ## Community Support
-This repository is one of **many** plugins in **Snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap.
-
-To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support).
+This repository is one of **many** plugins in **Snap**, a powerful telemetry framework. See the full project at http://github.com/intelsdi-x/snap
+To reach out to other users, head to the [main framework](https://github.com/intelsdi-x/snap#community-support) or visit [Slack](http://slack.snap-telemetry.io).
 
 ## Contributing
 We love contributions!
