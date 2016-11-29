@@ -7,7 +7,7 @@ It's used in the [Snap framework](https://github.com/intelsdi-x/snap).
   * [System Requirements](#system-requirements)
   * [Operating systems](#operating-systems)
   * [Installation](#installation)
-  * [Configuration and Usage](configuration-and-usage)
+  * [Configuration and Usage](#configuration-and-usage)
 2. [Documentation](#documentation)
   * [Collected Metrics](#collected-metrics)
   * [Examples](#examples)
@@ -19,7 +19,7 @@ It's used in the [Snap framework](https://github.com/intelsdi-x/snap).
 
 ## Getting Started
 ### System Requirements
-* [golang 1.5+](https://golang.org/dl/)
+* [golang 1.6+](https://golang.org/dl/)
 
 ### Operating systems
 All OSs currently supported by Snap:
