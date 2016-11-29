@@ -1,0 +1,22 @@
+package: github.com/intelsdi-x/snap-plugin-collector-interface
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/intelsdi-x/snap-plugin-utilities
+  subpackages:
+  - config
+  - ns
+  - str
+- package: github.com/intelsdi-x/snap
+  subpackages:
+  - control/plugin
+  - control/plugin/cpolicy
+  - core
+  - core/serror
+testImport:
+- package: github.com/smartystreets/goconvey
+  subpackages:
+  - convey
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
+  - suite
