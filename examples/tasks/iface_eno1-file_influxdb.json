@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "schedule": {
+    "type": "simple",
+    "interval": "1s"
+  },
+  "workflow": {
+    "collect": {
+      "metrics": {
+        "/intel/procfs/iface/eno1/*": {}
+      },
+      "publish": [
+        {
+          "plugin_name": "file",
+          "config": {
+            "file": "/tmp/published_interface_eno1"
+          }
+        },
+        {
+          "plugin_name": "influxdb",
+          "config": {
+            "host": "127.0.0.1",
+            "port": 8086,
+            "database": "snap",
+            "user": "admin",
+            "password": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
