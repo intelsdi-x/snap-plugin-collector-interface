@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "schedule": {
+    "type": "simple",
+    "interval": "1s"
+  },
+  "workflow": {
+    "collect": {
+      "metrics": {
+        "/intel/procfs/iface/enp2s0/packets_recv": {},
+        "/intel/procfs/iface/enp2s0/packets_sent": {},
+        "/intel/procfs/iface/enp2s0/bytes_recv": {},
+        "/intel/procfs/iface/enp2s0/bytes_sent": {}
+      },
+      "publish": [
+        {
+          "plugin_name": "file",
+          "config": {
+            "file": "/tmp/published_interface_enp2s0"
+          }
+        },
+        {
+          "plugin_name": "influxdb",
+          "config": {
+            "host": "127.0.0.1",
+            "port": 8086,
+            "database": "snap",
+            "user": "admin",
+            "password": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
