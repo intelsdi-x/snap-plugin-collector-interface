@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -47,7 +48,7 @@ const (
 	// Name of plugin
 	PluginName = "iface"
 	// Version of plugin
-	PluginVersion = 4
+	PluginVersion = 5
 	// Type of plugin
 	pluginType = plugin.CollectorPluginType
 
@@ -127,7 +128,7 @@ func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metric
 			mList[mItem.Value] = true
 			mts = append(mts, plugin.MetricType{
 				Namespace_: core.NewNamespace(prefix...).
-					AddDynamicElement("interface", "name of interface").
+					AddDynamicElement("interface_name", "name of interface").
 					AddStaticElement(mItem.Value),
 				Description_: "dynamic interface metric: " + mItem.Value,
 			})
@@ -160,10 +161,17 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 				val := getMapValueByNamespace(istats.(map[string]interface{}), ns.Strings()[4:])
 				if val != nil {
 					ns1 := core.NewNamespace(createNamespace(itf, ns[len(ns)-1].Value)...)
-					ns1[len(ns1)-2].Name = ns[len(ns)-2].Name
+					interfaceName := ns[len(ns)-2].Name
+					ns1[len(ns1)-2].Name = interfaceName
+					interfaceConfiguration, err := getInterfaceConfiguration(interfaceName)
+					if err != nil {
+						return nil, err
+					}
+
 					metric := plugin.MetricType{
 						Namespace_: ns1,
 						Data_:      val,
+						Tags_:      interfaceConfiguration,
 						Timestamp_: curTime,
 					}
 					metrics = append(metrics, metric)
@@ -328,4 +336,16 @@ func getMapValueByNamespace(map_ map[string]interface{}, ns []string) interface{
 	}
 
 	return nil
+}
+
+func getInterfaceConfiguration(ifaceName string) (map[string]string, error) {
+
+	interfaceConfig, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+	tags := make(map[string]string)
+	tags["hardware_addr"] = string(interfaceConfig.HardwareAddr)
+	tags["mtu"] = strconv.Itoa(interfaceConfig.MTU)
+	return tags, nil
 }
