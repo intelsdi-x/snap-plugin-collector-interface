@@ -21,3 +21,5 @@ Namespace | Description (optional)
 /intel/procfs/iface/\<interface_name\>/multicast_sent | The number of multicast frames transmitted by the device driver
 /intel/procfs/iface/\<interface_name\>/packets_recv | The total number of packets of data received by the interface
 /intel/procfs/iface/\<interface_name\>/packets_sent | The total number of packets of data transmitted by the interface
+
+All collected samples contains information about the hardware address (tag -> hardware_address) and the MTU (tag -> mtu).
