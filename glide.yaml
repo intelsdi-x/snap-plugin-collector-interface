@@ -1,22 +1,21 @@
 package: github.com/intelsdi-x/snap-plugin-collector-interface
 import:
 - package: github.com/Sirupsen/logrus
+  version: ^1.0.2
+- package: github.com/intelsdi-x/snap-plugin-lib-go
+  subpackages:
+  - v1/plugin
 - package: github.com/intelsdi-x/snap-plugin-utilities
   subpackages:
-  - config
   - ns
   - str
-- package: github.com/intelsdi-x/snap
-  subpackages:
-  - control/plugin
-  - control/plugin/cpolicy
-  - core
-  - core/serror
 testImport:
 - package: github.com/smartystreets/goconvey
+  version: ^1.6.2
   subpackages:
   - convey
 - package: github.com/stretchr/testify
+  version: ^1.1.4
   subpackages:
   - assert
   - suite
