@@ -34,23 +34,16 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/control/plugin/cpolicy"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/serror"
-
-	"github.com/intelsdi-x/snap-plugin-utilities/config"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 	"github.com/intelsdi-x/snap-plugin-utilities/ns"
 	"github.com/intelsdi-x/snap-plugin-utilities/str"
 )
 
 const (
 	// Name of plugin
-	PluginName = "iface"
+	Name = "iface"
 	// Version of plugin
-	PluginVersion = 5
-	// Type of plugin
-	pluginType = plugin.CollectorPluginType
+	Version = 6
 
 	nsVendor = "intel"
 	nsClass  = "procfs"
@@ -65,46 +58,41 @@ var prefix = []string{nsVendor, nsClass, nsType}
 // the plugin gets executed
 var ifaceInfo = "/proc/1/net/dev"
 
-// Meta returns plugin meta data
-func Meta() *plugin.PluginMeta {
-	return plugin.NewPluginMeta(
-		PluginName,
-		PluginVersion,
-		pluginType,
-		[]string{},
-		[]string{plugin.SnapGOBContentType},
-		plugin.ConcurrencyCount(1),
-	)
+// New creates instance of interface info plugin
+func New() *IfaceCollector {
+	logger := log.New()
+	return &IfaceCollector{
+		logger:    logger,
+		proc_path: ifaceInfo,
+		stats:     map[string]interface{}{},
+	}
 }
 
-// Function to check properness of configuration parameter
-// and set plugin attribute accordingly
-func (iface *ifacePlugin) setProcPath(cfg interface{}) error {
-	procPath, err := config.GetConfigItem(cfg, "proc_path")
-	if err == nil && len(procPath.(string)) > 0 {
-		procPathStats, err := os.Stat(procPath.(string))
-		if err != nil {
-			return err
-		}
-		if !procPathStats.IsDir() {
-			return errors.New(fmt.Sprintf("%s is not a directory", procPath.(string)))
-		}
-		iface.proc_path = procPath.(string) + "/1/net/dev"
-	}
-	return nil
+type IfaceCollector struct {
+	stats     map[string]interface{}
+	logger    *log.Logger
+	proc_path string
+}
+
+// GetConfigPolicy returns config policy
+func (iface *IfaceCollector) GetConfigPolicy() (plugin.ConfigPolicy, error) {
+	cpolicy := plugin.NewConfigPolicy()
+	cpolicy.AddNewStringRule([]string{nsVendor, nsClass, Name},
+		"proc_path", false, plugin.SetDefaultString("/proc"))
+	return *cpolicy, nil
 }
 
 // GetMetricTypes returns list of available metric types
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.MetricType, error) {
+func (iface *IfaceCollector) GetMetricTypes(cfg plugin.Config) ([]plugin.Metric, error) {
 	err := iface.setProcPath(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	mts := []plugin.MetricType{}
+	mts := []plugin.Metric{}
 
-	if err = iface.getStats(iface.stats); err != nil {
+	if err = iface.getStats(); err != nil {
 		return nil, err
 	}
 
@@ -119,18 +107,18 @@ func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metric
 	// List of terminal metric names
 	mList := make(map[string]bool)
 	for _, namespace := range namespaces {
-		metric := plugin.MetricType{Namespace_: core.NewNamespace(strings.Split(namespace, "/")...)}
-		ns := metric.Namespace()
+		metric := plugin.Metric{Namespace: plugin.NewNamespace(strings.Split(namespace, "/")...)}
+		ns := metric.Namespace
 		// Interface metric (aka last element in namespace)
 		mItem := ns[len(ns)-1]
 		// Keep it if not already seen before
 		if !mList[mItem.Value] {
 			mList[mItem.Value] = true
-			mts = append(mts, plugin.MetricType{
-				Namespace_: core.NewNamespace(prefix...).
+			mts = append(mts, plugin.Metric{
+				Namespace: plugin.NewNamespace(prefix...).
 					AddDynamicElement("interface_name", "name of interface").
 					AddStaticElement(mItem.Value),
-				Description_: "dynamic interface metric: " + mItem.Value,
+				Description: "dynamic interface metric: " + mItem.Value,
 			})
 		}
 	}
@@ -139,20 +127,20 @@ func (iface *ifacePlugin) GetMetricTypes(cfg plugin.ConfigType) ([]plugin.Metric
 
 // CollectMetrics returns list of requested metric values
 // It returns error in case retrieval was not successful
-func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plugin.MetricType, error) {
-	err := iface.setProcPath(metricTypes[0])
+func (iface *IfaceCollector) CollectMetrics(mts []plugin.Metric) ([]plugin.Metric, error) {
+	err := iface.setProcPath(mts[0].Config)
 	if err != nil {
 		return nil, err
 	}
 
-	metrics := []plugin.MetricType{}
+	metrics := []plugin.Metric{}
 
-	if err := iface.getStats(iface.stats); err != nil {
+	if err := iface.getStats(); err != nil {
 		return nil, err
 	}
 	curTime := time.Now()
-	for _, metricType := range metricTypes {
-		ns := metricType.Namespace()
+	for _, mt := range mts {
+		ns := mt.Namespace
 		if len(ns) < 5 {
 			return nil, fmt.Errorf("Namespace length is too short (len = %d)", len(ns))
 		}
@@ -160,29 +148,28 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 			for itf, istats := range iface.stats {
 				val := getMapValueByNamespace(istats.(map[string]interface{}), ns.Strings()[4:])
 				if val != nil {
-					ns1 := core.NewNamespace(createNamespace(itf, ns[len(ns)-1].Value)...)
-					interfaceName := ns[len(ns)-2].Name
-					ns1[len(ns1)-2].Name = interfaceName
-					interfaceConfiguration, err := getInterfaceConfiguration(interfaceName)
+					ns1 := plugin.NewNamespace(createNamespace(itf, ns[len(ns)-1].Value)...)
+					ns1[len(ns1)-2].Name = itf
+					interfaceConfiguration, err := getInterfaceConfiguration(itf)
 					if err != nil {
 						return nil, err
 					}
 
-					metric := plugin.MetricType{
-						Namespace_: ns1,
-						Data_:      val,
-						Tags_:      interfaceConfiguration,
-						Timestamp_: curTime,
+					metric := plugin.Metric{
+						Namespace: ns1,
+						Data:      val,
+						Tags:      interfaceConfiguration,
+						Timestamp: curTime,
 					}
 					metrics = append(metrics, metric)
 				}
 			}
 		} else {
 			val := getMapValueByNamespace(iface.stats, ns.Strings()[3:])
-			metric := plugin.MetricType{
-				Namespace_: ns,
-				Data_:      val,
-				Timestamp_: curTime,
+			metric := plugin.Metric{
+				Namespace: ns,
+				Data:      val,
+				Timestamp: curTime,
 			}
 			metrics = append(metrics, metric)
 		}
@@ -190,37 +177,28 @@ func (iface *ifacePlugin) CollectMetrics(metricTypes []plugin.MetricType) ([]plu
 	return metrics, nil
 }
 
+// Function to check properness of configuration parameter
+// and set plugin attribute accordingly
+func (iface *IfaceCollector) setProcPath(cfg plugin.Config) error {
+
+	procPath, err := cfg.GetString("proc_path")
+	if err == nil && len(procPath) > 0 {
+		procPathStats, err := os.Stat(procPath)
+		if err != nil {
+			return err
+		}
+		if !procPathStats.IsDir() {
+			return errors.New(fmt.Sprintf("%s is not a directory", procPath))
+		}
+		iface.proc_path = procPath + "/1/net/dev"
+	}
+	return nil
+}
+
 // createNamespace returns namespace slice of strings composed from: vendor, class, type and components of metric name
 func createNamespace(itf string, name string) []string {
 	var suffix = []string{itf, name}
 	return append(prefix, suffix...)
-}
-
-// GetConfigPolicy returns config policy
-// It returns error in case retrieval was not successful
-func (iface *ifacePlugin) GetConfigPolicy() (*cpolicy.ConfigPolicy, error) {
-	cp := cpolicy.New()
-	rule, _ := cpolicy.NewStringRule("proc_path", false, "/proc")
-	node := cpolicy.NewPolicyNode()
-	node.Add(rule)
-	cp.Add([]string{nsVendor, nsClass, PluginName}, node)
-	return cp, nil
-}
-
-// New creates instance of interface info plugin
-func New() *ifacePlugin {
-	logger := log.New()
-	return &ifacePlugin{
-		logger:    logger,
-		proc_path: ifaceInfo,
-		stats:     map[string]interface{}{},
-	}
-}
-
-type ifacePlugin struct {
-	stats     map[string]interface{}
-	logger    *log.Logger
-	proc_path string
 }
 
 func parseHeader(line string) ([]string, error) {
@@ -257,7 +235,7 @@ func parseHeader(line string) ([]string, error) {
 	return append(recv, sent...), nil
 }
 
-func (iface *ifacePlugin) getStats(stats map[string]interface{}) error {
+func (iface *IfaceCollector) getStats() error {
 	path := iface.proc_path
 	content, err := ioutil.ReadFile(path)
 
@@ -297,20 +275,18 @@ func (iface *ifacePlugin) getStats(stats map[string]interface{}) error {
 			stat := header[i]
 			val, err := strconv.ParseInt(ivals[i], 10, 64)
 			if err != nil {
-				f := map[string]interface{}{
+				log.WithFields(log.Fields{
 					"iname":  iname,
 					"stat":   stat,
 					"strVal": ivals[i],
 					"val":    val,
-				}
-				se := serror.New(err, f)
-				log.WithFields(se.Fields()).Warn("Cannot parse metric value to number, metric value saved as -1, ", se.String())
+				}).Warn("Cannot parse metric value to number, metric value saved as -1, ", err)
 				val = -1
 			}
 			istats[stat] = val
 		}
 
-		stats[iname] = istats
+		iface.stats[iname] = istats
 	}
 
 	return nil
@@ -339,7 +315,6 @@ func getMapValueByNamespace(map_ map[string]interface{}, ns []string) interface{
 }
 
 func getInterfaceConfiguration(ifaceName string) (map[string]string, error) {
-
 	interfaceConfig, err := net.InterfaceByName(ifaceName)
 	if err != nil {
 		return nil, err

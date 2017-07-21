@@ -1,3 +1,5 @@
+// +build small
+
 /*
 http://www.apache.org/licenses/LICENSE-2.0.txt
 
@@ -28,9 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/intelsdi-x/snap/control/plugin"
-	"github.com/intelsdi-x/snap/core"
-	"github.com/intelsdi-x/snap/core/cdata"
+	"github.com/intelsdi-x/snap-plugin-lib-go/v1/plugin"
 )
 
 type ifaceInfoSuite struct {
@@ -53,24 +53,22 @@ func (iis *ifaceInfoSuite) TestGetStats() {
 	Convey("Given interface info map", iis.T(), func() {
 		ifacePlg := New()
 
-		stats := map[string]interface{}{}
-
 		Convey("and mock memory info file created", func() {
 			assert.Equal(iis.T(), "mockIfaceInfo", ifaceInfo)
 		})
 
 		Convey("When reading interface statistics from file", func() {
-			err := ifacePlg.getStats(stats)
+			err := ifacePlg.getStats()
 
 			Convey("No error should be reported", func() {
 				So(err, ShouldBeNil)
 			})
 
 			Convey("Proper statistics values are returned", func() {
-				So(len(stats), ShouldEqual, 2)
+				So(len(ifacePlg.stats), ShouldEqual, 2)
 
-				So(stats["p3p1"], ShouldHaveSameTypeAs, map[string]interface{}{})
-				p3p1 := stats["p3p1"].(map[string]interface{})
+				So(ifacePlg.stats["p3p1"], ShouldHaveSameTypeAs, map[string]interface{}{})
+				p3p1 := ifacePlg.stats["p3p1"].(map[string]interface{})
 				So(len(p3p1), ShouldEqual, 16)
 
 				val, ok := p3p1["bytes_recv"].(int64)
@@ -85,8 +83,8 @@ func (iis *ifaceInfoSuite) TestGetStats() {
 				So(ok, ShouldBeTrue)
 				So(val, ShouldEqual, 17015516)
 
-				So(stats["lo"], ShouldHaveSameTypeAs, map[string]interface{}{})
-				lo := stats["lo"].(map[string]interface{})
+				So(ifacePlg.stats["lo"], ShouldHaveSameTypeAs, map[string]interface{}{})
+				lo := ifacePlg.stats["lo"].(map[string]interface{})
 				So(len(lo), ShouldEqual, 16)
 
 				val, ok = lo["fifo_sent"].(int64)
@@ -105,8 +103,8 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 	Convey("Given interface info plugin initialized", iis.T(), func() {
 		ifacePlg := New()
 
-		Convey("When one wants to get iist of available meterics", func() {
-			mts, err := ifacePlg.GetMetricTypes(plugin.NewPluginConfigType())
+		Convey("When one wants to get list of available meterics", func() {
+			mts, err := ifacePlg.GetMetricTypes(plugin.Config{})
 
 			Convey("Then error should not be reported", func() {
 				So(err, ShouldBeNil)
@@ -117,7 +115,7 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 
 				namespaces := []string{}
 				for _, m := range mts {
-					namespaces = append(namespaces, m.Namespace().String())
+					namespaces = append(namespaces, m.Namespace.String())
 				}
 
 				So(namespaces, ShouldContain, "/intel/procfs/iface/*/errs_recv")
@@ -143,24 +141,24 @@ func (iis *ifaceInfoSuite) TestGetMetricTypes() {
 }
 
 func (iis *ifaceInfoSuite) TestCollectMetrics() {
-	Convey("Given interface info plugin initlialized", iis.T(), func() {
+	Convey("Given interface info plugin initialized", iis.T(), func() {
 		ifacePlg := New()
-		cfg := cdata.NewNode()
+		cfg := plugin.Config{}
 		Convey("When one wants to get values for given metric types", func() {
-			mTypes := []plugin.MetricType{
-				plugin.MetricType{
-					Namespace_: core.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent"),
-					Config_:    cfg,
+			mTypes := []plugin.Metric{
+				{
+					Namespace: plugin.NewNamespace("intel", "procfs", "iface", "p3p1", "bytes_sent"),
+					Config:    cfg,
 				},
-				plugin.MetricType{
-					Namespace_: core.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv"),
-					Config_:    cfg,
+				{
+					Namespace: plugin.NewNamespace("intel", "procfs", "iface", "lo", "packets_recv"),
+					Config:    cfg,
 				},
 			}
 
 			metrics, err := ifacePlg.CollectMetrics(mTypes)
 
-			Convey("Then no erros should be reported", func() {
+			Convey("Then no errors should be reported", func() {
 				So(err, ShouldBeNil)
 			})
 
@@ -169,8 +167,8 @@ func (iis *ifaceInfoSuite) TestCollectMetrics() {
 
 				stats := map[string]interface{}{}
 				for _, m := range metrics {
-					n := m.Namespace().String()
-					stats[n] = m.Data()
+					n := m.Namespace.String()
+					stats[n] = m.Data
 				}
 
 				So(len(metrics), ShouldEqual, len(stats))
