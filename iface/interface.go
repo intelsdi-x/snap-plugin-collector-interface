@@ -320,7 +320,7 @@ func getInterfaceConfiguration(ifaceName string) (map[string]string, error) {
 		return nil, err
 	}
 	tags := make(map[string]string)
-	tags["hardware_addr"] = string(interfaceConfig.HardwareAddr)
+	tags["hardware_addr"] = interfaceConfig.HardwareAddr.String()
 	tags["mtu"] = strconv.Itoa(interfaceConfig.MTU)
 	return tags, nil
 }
