@@ -43,7 +43,7 @@ const (
 	// Name of plugin
 	Name = "iface"
 	// Version of plugin
-	Version = 6
+	Version = 7
 
 	nsVendor = "intel"
 	nsClass  = "procfs"
