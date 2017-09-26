@@ -50,8 +50,8 @@ This builds the plugin in `./build/`
 * Load the plugin and create a task, see example in [Examples](#examples).
 
 Configuration parameters:
-- `proc_path` path to '1/dev/net' file (helpful for running plugin in Docker container)
-In fact this file should NOT be <proc_path>/dev/net because this is a symlink and therefore
+- `proc_path` path to '1/net/dev' file (helpful for running plugin in Docker container)
+In fact this file should NOT be <proc_path>/net/dev because this is a symlink and therefore
 will resolve in the exact same way both within or outside of a container. Therefore PID 1
 has to be used
 
@@ -60,9 +60,9 @@ has to be used
 ### Collected Metrics
 List of collected metrics is described in [METRICS.md](METRICS.md).
 
-Plugin reads metrics from `<proc_path>/1/dev/net` file. (see comment above)
+Plugin reads metrics from `<proc_path>/1/net/dev` file. (see comment above)
 Path to above file can be provided in configuration in task manifest as `proc_path`. If configuration is not provided, plugin will try
-to read from default location which is `/proc/1/dev/net`.
+to read from default location which is `/proc/1/net/dev`.
 
 ### Examples
 Example of running Snap interface collector and writing data to file.
